@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const FILTERS = {
   DONE: "DONE",
@@ -6,10 +6,7 @@ const FILTERS = {
   NONE: "NONE",
 };
 
-const initialState = [
-  { id: crypto.randomUUID(), text: "Learn React", done: false },
-  { id: crypto.randomUUID(), text: "Learn JS", done: true },
-];
+const API_URL = "http://localhost:3000";
 
 const AddTodo = ({ addTodo }) => {
   const handleKeyPress = (event) => {
@@ -76,7 +73,7 @@ const TodoItem = ({ todo, markTodoAsDone }) => {
 };
 
 const TodoList = () => {
-  const [todos, setTodos] = useState(initialState);
+  const [todos, setTodos] = useState([]);
   const [currentFilter, setCurrentFilter] = useState(FILTERS.NONE);
 
   const filteredTodos = todos.filter((todo) => {
@@ -85,20 +82,72 @@ const TodoList = () => {
     if (currentFilter == FILTERS.NONE) return true;
   });
 
-  const changeFilter = (filter) => {
-    setCurrentFilter(filter);
+  const changeFilter = (filter) => setCurrentFilter(filter);
+
+  const createTodo = async (todo) => {
+    try {
+      const response = await fetch(`${API_URL}/todos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(todo),
+      });
+      if (!response.ok) throw new Error("Erro ao buscar os dados");
+    } catch (err) {
+      console.log("Erro ao criar tarefa.");
+    }
   };
 
-  const addTodo = (text) => {
+  const updateTodo = async ({ id, todo }) => {
+    try {
+      const response = await fetch(`${API_URL}/todos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(todo),
+      });
+      if (!response.ok) throw new Error("Erro ao buscar os dados");
+    } catch (err) {
+      console.log("Erro ao criar tarefa.");
+    }
+  };
+
+  const addTodo = async (text) => {
     const newTodo = { id: crypto.randomUUID(), text, done: false };
+
+    await createTodo(newTodo);
+
     setTodos((prevTodos) => [...prevTodos, newTodo]);
   };
 
-  const markTodoAsDone = (id) => {
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) => (todo.id === id ? { ...todo, done: true } : todo))
-    );
+  const markTodoAsDone = async (id) => {
+    const todo = todos.find((todo) => todo.id === id);
+    const newTodo = { ...todo, done: true };
+
+    await updateTodo({ id, todo: newTodo });
+
+    const newTodos = todos.map((todo) => (todo.id === id ? newTodo : todo));
+    setTodos(newTodos);
   };
+
+  useEffect(() => {
+    const fetchTodos = async () => {
+      try {
+        const response = await fetch(`${API_URL}/todos`);
+        if (!response.ok) {
+          throw new Error("Erro ao buscar os dados");
+        }
+        const data = await response.json();
+        setTodos(data);
+      } catch (error) {
+        console.error("Erro ao buscar os dados:", error);
+      }
+    };
+
+    fetchTodos();
+  }, []);
 
   return (
     <>
